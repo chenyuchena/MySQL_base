@@ -72,3 +72,23 @@ begin
 end;
 ```
 
+```
+#修改数据触发器
+create trigger tb_user_updata_trigger
+    after updata on tb_user for each row 
+begin 
+    insert into user_logs(id, operation, operate_time, operate_id, operate_params) VALUES (null, 'updata', 
+    now(),NEW.id, concat('更新之前的数据：id=',old.id,'name=',old.name,...,'更新之后的数据：id=',NEW.id,'name=',NEW.name,...))
+end;
+```
+
+```
+#删除数据触发器
+create trigger tb_user_delete_trigger
+    after delete on tb_user for each row 
+begin 
+    ins into user_logs(id, operation, operate_time, operate_id, operate_params) VALUES (null, 'delete', 
+    now(),'删除的数据：id=',old.id,'name=',old.name,...))
+end;
+```
+
