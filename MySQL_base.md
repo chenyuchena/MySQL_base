@@ -138,5 +138,17 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
 
     为了避免DML在执行时，加的行锁与表锁的冲突。使得表锁不用检查每行数据是否加锁，使用意向锁来减少表锁的检查。
 
+    - 意向共享锁（IS）：
+
+      ```
+      select...lock in share mode
+      ```
+
+    - 意向排他锁（IX）：
+
+      ```
+      insert、updata、delete、select...for updata
+      ```
+
 - 行级锁
 
