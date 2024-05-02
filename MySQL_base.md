@@ -48,4 +48,27 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
   drop trigger [schema_name]trigger_name; --如果没有指定schema_name，默认当前数据库。
   ```
 
-  
+案例：
+
+```
+#创建日志标
+create table user_logs(
+  id int(11) not null auto_increment,
+  operation varchar(20) not null comment '操作类型, insert/update/delete',
+  operate_time datetime not null comment '操作时间',
+  operate_id int(11) not null comment '操作的ID',
+  operate_params varchar(500) comment '操作参数',
+  primary key(`id`)
+)engine=innodb default charset=utf8;
+```
+
+```
+#插入数据触发器
+create trigger tb_user_insert_trigger
+    after insert on tb_user for each row 
+begin 
+    insert into user_logs(id, operation, operate_time, operate_id, operate_params) VALUES (null, 'insert', 
+    now(),NEW.id, concat('插入数据的内容为：id=',NEW.id,'name=',NEW.name,...))
+end;
+```
+
