@@ -138,17 +138,27 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
 
     为了避免DML在执行时，加的行锁与表锁的冲突。使得表锁不用检查每行数据是否加锁，使用意向锁来减少表锁的检查。
 
-    - 意向共享锁（IS）：
+    - 意向共享锁（IS）：与表锁（read）兼容，与write互斥。
 
       ```
       select...lock in share mode
       ```
 
-    - 意向排他锁（IX）：
+    - 意向排他锁（IX）：与表锁read和write都互斥。意向锁之间不互斥。
 
       ```
       insert、updata、delete、select...for updata
       ```
 
-- 行级锁
+    ```
+    #查看意向锁及行锁的加锁情况
+    
+    select object_schema,object_name,index_name,lock_type.lock_data from performance_schema.data_locks;
+    ```
 
+- 行级锁：每次锁住对应的行数据。锁定粒度小，发生锁冲突的概率最低，并发度最高。应用在InnoDB存储引擎中。通过对索引上的索引项加锁来实现。
+
+  - 行锁（Record Lock）:锁定单个行纪录。
+  - 间隙锁（Gap Lock）：锁定间隙，防止其他事务在这个间隙进行insert，产生幻读。RR隔离
+
+  
