@@ -4,8 +4,6 @@
 
 1. DDL
 
-   
-
 2. DML
 
 3. DQL
@@ -244,7 +242,7 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
    -  IO Thread
      在InnoDB存储引擎中大量使用了AIO来处理IO请求,这样可以极大地提高数据库的性能，而IO Thread主要负责这些IO请求的回调。
 
-     ![image-20240503134456856](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503134456856.png)
+     ![IO线程](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503134456856.png)
 
    - Purge Thread
      主要用于回收事务已经提交了的undo log，在事务提交之后，undo log可能不用了，就用它来回收。
@@ -268,7 +266,7 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
 
 - redo log（持久性）
 
-  重做日志，记录的是事务提交时数据页的物理修改，是用来实现事务的持久性。该日志文件由两部分组成:重做日志缓冲(redolog buffer)以及重做日志文件(redolog file)，前者是在内存中，后者在磁盘中。当事务提交之后会把所有修改信息都存到该日志文件中，用于在刷新脏页到磁盘，发生错误时，进行数据恢复使用。
+  重做日志，记录的是事务提交时数据页的物理修改，是用来实现事务的持久性。该日志文件由两部分组成：重做日志缓冲(redolog buffer)以及重做日志文件(redolog file)，前者是在内存中，后者在磁盘中。当事务提交之后会把所有修改信息都存到该日志文件中，用于在刷新脏页到磁盘，发生错误时，进行数据恢复使用。
 
 - undo log（原子性）
 
@@ -292,32 +290,35 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
 
   - 记录中的隐藏字段
 
-    ![image-20240503143512870](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503143512870.png)
+    ![隐藏字段](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503143512870.png)
 
   - undo log 版本链
 
-    ![image-20240503144830661](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503144830661.png)
+    ![版本链示意图](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503144830661.png)
 
   - readview
 
-    ![image-20240503145024073](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145024073.png)
+    ![版本链访问规则](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145024073.png)
 
     不同的隔离级别，生成Readview的时机不同：
     READ COMMITTED：在事务中每一次执行快照读时生成Readview。
     REPEATABLE READ：仅在事务中第一次执行快照读时生成ReadView，后续复用该ReadView。
 
-    ![image-20240503145304855](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145304855.png)![image-20240503145329299](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145329299.png)
+    ![RC](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145304855.png)![RR](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145329299.png)
 
-- 
+### 2.4 MySQL管理
 
-- 
+#### 2.4.1 系统数据库
 
-  
+Mysql数据库安装完成后，自带了一下四个数据库，具体作用如下:
 
-  
+![系统数据库](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503150847479.png)
 
-  
+#### 2.4.2 常用工具
 
-  
+- mysql
 
-  
+
+
+
+
