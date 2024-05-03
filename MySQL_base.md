@@ -29,7 +29,7 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
   
   before/after insert/update/delete
   
-  on tbl_name for each row --行级触发器
+  on tbl_name for each row #行级触发器
   
   beign
   	trigger_stmt
@@ -45,7 +45,7 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
 - 删除
 
   ```
-  drop trigger [schema_name]trigger_name; --如果没有指定schema_name，默认当前数据库。
+  drop trigger [schema_name]trigger_name; #如果没有指定schema_name，默认当前数据库。
   ```
 
 #### 2.1.2 案例
@@ -100,65 +100,224 @@ OLD 和 NEW 引用触发器中发生变化的纪录内容。目前只支持行�
 
 计算机协调多个进程或线程并发访问某一资源的机制。
 
-#### 2.2.1 分类
+#### 2.2.1 全局锁
 
-- 全局锁：整个数据库中的表，加锁后，DDL、DML用不了。
+整个数据库中的表，加锁后，DDL、DML用不了。
+
+```
+flush tables with read lock ;
+
+mysqldump -u'用户' -p'密码' database1 > database.sql #数据备份(不是MySQL中的命令语句)
+
+unlock tables;
+```
+
+在InnoDB引擎中，可在备份时加上参数  –single-transaction 参数来完成不加锁的一致性数据备份。
+
+```
+mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
+```
+
+#### 2.2.2 表级锁
+
+每次锁住整张表。锁定粒度大，发生锁冲突的概率最高，并发度最低。
+
+- 表锁
 
   ```
-  flush tables with read lock ;
+  lock tables 'table_name' read #表共享读锁,客户端都只能读，不能写
   
-  mysqldump -u'用户' -p'密码' database1 > database.sql (不是MySQL中的命令语句)
+  lock tables 'table_name' write #表独占写锁,当前客端能读能写，其他不能
   
-  unlock tables;
+  unlock tables #解锁 
   ```
 
-  在InnoDB引擎中，可在备份时加上参数  –single-transaction 参数来完成不加锁的一致性数据备份。
+- 元数据锁（meta data lock, MDL）
+
+  系统自动控制，无需显式使用。主要作用是维护表元数据的数据一致性，在表上有活动事务的时候，不可以对元数据进行写入操作。避免DML与DDL冲突，保证读写的正确性。（开启事务后，对table进行select等操作时，事务未提交，不能进行DDL操作，处于阻塞状态）
+
+- 意向锁
+
+  为了避免DML在执行时，加的行锁与表锁的冲突。使得表锁不用检查每行数据是否加锁，使用意向锁来减少表锁的检查。
+
+  - 意向共享锁（IS）：与表锁（read）兼容，与write互斥。
+
+    ```
+    select...lock in share mode
+    ```
+
+  - 意向排他锁（IX）：与表锁read和write都互斥。意向锁之间不互斥。
+
+    ```
+    insert、updata、delete、select...for updata
+    ```
 
   ```
-  mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
+  #查看意向锁及行锁的加锁情况
+  
+  select object_schema,object_name,index_name,lock_type.lock_data from performance_schema.data_locks;
   ```
 
-- 表级锁：每次锁住整张表。锁定粒度大，发生锁冲突的概率最高，并发度最低。
+#### 2.2.3 行级锁
 
-  - 表锁
+每次锁住对应的行数据。锁定粒度小，发生锁冲突的概率最低，并发度最高。应用在InnoDB存储引擎中。通过对索引上的索引项加锁来实现。
 
-    ```
-    表共享读锁 lock tables 'table_name' read #客户端都只能读，不能写
-    
-    表独占写锁 lock tables 'table_name' write #当前客端能读能写，其他不能
-    
-    解锁 unlock tables
-    ```
+- 行锁（Record Lock）:锁定单个行纪录。（READ COMMITED）RC不可重复读、（REPEATABLE READ）RR可重复读隔离级别支持。
 
-  - 元数据锁（meta data lock, MDL）
+  - 共享锁（S）：本身兼容，其他互斥。
+  - 排他锁（X）：都互斥。
 
-    系统自动控制，无需显式使用。主要作用是维护表元数据的数据一致性，在表上有活动事务的时候，不可以对元数据进行写入操作。避免DML与DDL冲突，保证读写的正确性。（开启事务后，对table进行select等操作时，事务未提交，不能进行DDL操作，处于阻塞状态）
+  若不通过索引条件检索数据，此时行锁升级为表锁。
 
-  - 意向锁
+- 间隙锁（Gap Lock）：锁定间隙，防止其他事务在这个间隙进行insert，产生幻读。RR隔离级别支持。可共存。
+  1. 索引上的等值查询（唯一索引），给不存在的纪录加锁时，优化为间隙锁。
+  2. 索引上的等值查询（普通索引），向右遍历时最后一个值不满足查询需求时，Next-Key Lock退化为间隙锁。
+  3. 索引上的范围查询（唯一索引），会访问到不满足条件的第一个值为止。
+- 临建锁（Next-Key Lock）：行锁和间隙锁组合。RR隔离级别支持。
 
-    为了避免DML在执行时，加的行锁与表锁的冲突。使得表锁不用检查每行数据是否加锁，使用意向锁来减少表锁的检查。
+### 2.3 InnoDB引擎
 
-    - 意向共享锁（IS）：与表锁（read）兼容，与write互斥。
+#### 2.3.1 逻辑存储结构
 
-      ```
-      select...lock in share mode
-      ```
+表空间（bid文件），一个MySQL实例可以对应多个表空间，用于储存记录、索引等数据。
 
-    - 意向排他锁（IX）：与表锁read和write都互斥。意向锁之间不互斥。
+段，分为数据段（Leaf node segment）B+数叶子节点、索引段（Non-leaf segment）B+数非叶子节点、回滚段（Rollback segment），用来管理区，InnoDB是索引组织表。
 
-      ```
-      insert、updata、delete、select...for updata
-      ```
+区，表空间的单元结构，每个区大小为1M。一个区共64页。
 
-    ```
-    #查看意向锁及行锁的加锁情况
-    
-    select object_schema,object_name,index_name,lock_type.lock_data from performance_schema.data_locks;
-    ```
+页，InnoDB存储引擎磁盘管理的最小单元，每个页默认16KB。为了保证页的连续性，InnoDB存储引擎每次从磁盘申请4-5个区。
 
-- 行级锁：每次锁住对应的行数据。锁定粒度小，发生锁冲突的概率最低，并发度最高。应用在InnoDB存储引擎中。通过对索引上的索引项加锁来实现。
+行，InnoDB存储引擎数据是按行存放的。
 
-  - 行锁（Record Lock）:锁定单个行纪录。
-  - 间隙锁（Gap Lock）：锁定间隙，防止其他事务在这个间隙进行insert，产生幻读。RR隔离
+![存储结构](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503123926824.png)
+
+#### 2.3.2 架构
+
+1. 内存架构
+
+   - Buffer Pool：缓存磁盘上经常操作的数据，加快数据处理速度。以Page为单位。
+
+   - Change Pool：更改缓冲区（针对非唯一二级索引）。在执行DML语句时，若数据没在缓冲区，不会直接操作磁盘，而是将数据变更存在更改缓冲区，在未来数据被读取时，在将数据合并恢复到缓冲区中，最后将合并的数据刷新到磁盘。
+
+   - Adaptive Hash Index：自适应hash索引，用于优化对Buffer Pool数据的查询。
+
+   - Log Buffer：日志缓冲区，用来保存要写入到磁盘中的log日志数据，默认大小16M，里面的日志会定期刷新到磁盘。节省磁盘I/O。
+
+     参数：
+
+     ​	innodb_log_buffer_size：缓冲区大小
+
+     ​	innodb_flush_log_at_trx_commit：日志刷新到磁盘时机（1： 日志在每次事务提交时写入并刷新到磁盘；0：每秒将日志写入并刷新到磁盘一   	次；2：日志在每次事务提交后写入，并每秒刷新到磁盘一次。 ）
+
+2. 磁盘结构
+
+   - System Tablespace：系统表空间，更改缓冲区的存储区域。
+
+     参数：innodb_data_file_path
+
+   - File-Per-Table Tablespaces：每个表的文件表空间包含单个InnoDB表的数据和索引，并存储在文件系统上的单个数据文件中。
+
+     参数：innodb_file_per_table
+
+   - General Tablespace：通用表空间，需要创建，创建时可指定该表空间。
+
+     ```
+     create tablespace xxx add datafile 'file_name' engine = engine_name;
+     
+     create table xxx engine = engine_name tablespace  xxx;
+     ```
+
+   - Undo Tablespace：撤销表空间，自动创建两个默认undo表空间，16M，储存undo log日志。
+
+   - Temporary Tablespace：会话和全局临时表空间，存储用户创建的临时表等数据。
+
+   - Doublewrite Buffer Files：双写缓冲区，数据从Buffer Pool刷新到磁盘前，先写入双写缓冲区文件中，便于系统异常时恢复数据。
+
+   - Redo Log：重做日志用来实现事务的持久性。该日志文件由两部分组成：重做日志缓冲(redo log buffer)以及重做日志文件(redo log)，前者是在内存中，后者在磁盘中。当事务提交之后会把所有修改信息都会存到该日志中，用于在刷新脏页到磁盘时,发生错误时，进行数据恢复使用。
+
+3. 后台线程
+
+   -  Master Thread
+
+     核心后台线程，负责调度其他线程，还负责将缓冲池中的数据异步刷新到磁盘中，保持数据的一致性，还包括脏页的刷新、合并插入缓存、undo页的回收。
+
+   -  IO Thread
+     在InnoDB存储引擎中大量使用了AIO来处理IO请求,这样可以极大地提高数据库的性能，而IO Thread主要负责这些IO请求的回调。
+
+     ![image-20240503134456856](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503134456856.png)
+
+   - Purge Thread
+     主要用于回收事务已经提交了的undo log，在事务提交之后，undo log可能不用了，就用它来回收。
+   - Page Cleaner Thread
+     协助 Master Thread 刷新脏页到磁盘的线程，它可以减轻 Master Thread 的工作压力，减少阻塞。
+
+#### 2.3.3 事务原理
+
+- 事务
+  事务 是一组操作的集合，它是一个不可分割的工作单位，事务会把所有的操作作为一个整体一起向系统提交或撤销操作请求，即这些操作要么同时成功，要么同时失败。
+
+- 特性
+
+  - 原子性(Atomicity)：事务是不可分割的最小操作单元，要么全部成功，要么全部失败。
+  - 一致性(Consistency)：事务完成时，必须使所有的数据都保持一致状态。
+  - 隔离性(Isolation)：数据库系统提供的隔离机制，保证事务在不受外部并发操作影响的独立环境下运行。
+
+  - 持久性(Durabiity)：事务一旦提交或回滚，它对数据库中的数据的改变就是永久的。
+
+原子性、一致性、持久性由InnoDB中的redo log 和undo log保证，隔离性由锁和MVCC（多版本并发控制）保证。
+
+- redo log（持久性）
+
+  重做日志，记录的是事务提交时数据页的物理修改，是用来实现事务的持久性。该日志文件由两部分组成:重做日志缓冲(redolog buffer)以及重做日志文件(redolog file)，前者是在内存中，后者在磁盘中。当事务提交之后会把所有修改信息都存到该日志文件中，用于在刷新脏页到磁盘，发生错误时，进行数据恢复使用。
+
+- undo log（原子性）
+
+  回滚日志，用于记录数据被修改前的信息，作用包含两个：提供回滚 和 MVCC(多版本并发控制)。undo log和redo log记录物理日志不一样，它是逻辑日志。可以认为当delete一条记录时，undo log中会记录一条对应的insert记录，反之亦然，当update一条记录时，它记录一条对应相反的update记录。当执行rollback时，就可以从undo log中的逻辑记录读取到相应的内容并进行回滚。
+  Undo log销毁：undo log在事务执行时产生，事务提交时，并不会立即删除undolog，因为这些日志可能还用于MVCC。 
+  Undo log存储：undo log采用段的方式进行管理和记录，存放在前面介绍的 rollback segment 回滚段中，内部包含1024个undo log segment。
+
+- MVCC-基本概念
+
+  - 当前读
+    读取的是记录的最新版本，读取时还要保证其他并发事务不能修改当前记录，会对读取的记录进行加锁。对于我们日常的操作，如:select ... lock in share mode(共享锁)，select ... for update、update、insert、delete(排他锁)都是一种当前读。
+  - 快照读
+    简单的select(不加锁)就是快照读，快照读，读取的是记录数据的可见版本，有可能是历史数据，不加锁，是非阻塞读。
+    Read committed：每次select，都生成一个快照读。
+    Repeatable Read：开启事务后第一个select语句才是快照读的地方。
+    Serializable：快照读会退化为当前读。
+  - MVCC
+    全称 Multi-Version Concurrency Control，多版本并发控制。指维护一个数据的多个版本，使得读写操作没有冲突，快照读为MySQL实现MVCC提供了一个非阻塞读功能。MVCC的具体实现，还需要依赖于数据库记录中的三个隐式字段、undoloq日志、readView。
+
+- MVCC-实现原理
+
+  - 记录中的隐藏字段
+
+    ![image-20240503143512870](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503143512870.png)
+
+  - undo log 版本链
+
+    ![image-20240503144830661](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503144830661.png)
+
+  - readview
+
+    ![image-20240503145024073](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145024073.png)
+
+    不同的隔离级别，生成Readview的时机不同：
+    READ COMMITTED：在事务中每一次执行快照读时生成Readview。
+    REPEATABLE READ：仅在事务中第一次执行快照读时生成ReadView，后续复用该ReadView。
+
+    ![image-20240503145304855](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145304855.png)![image-20240503145329299](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145329299.png)
+
+- 
+
+- 
+
+  
+
+  
+
+  
+
+  
 
   
