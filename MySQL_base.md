@@ -187,7 +187,7 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
 
 行，InnoDB存储引擎数据是按行存放的。
 
-![存储结构](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503123926824.png)
+![存储结构](E:\study\java学习\MySQL\MySQL_base\img\1.png)
 
 #### 2.3.2 架构
 
@@ -242,7 +242,7 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
    -  IO Thread
      在InnoDB存储引擎中大量使用了AIO来处理IO请求,这样可以极大地提高数据库的性能，而IO Thread主要负责这些IO请求的回调。
 
-     ![IO线程](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503134456856.png)
+     ![IO线程](E:\study\java学习\MySQL\MySQL_base\img\2.png)
 
    - Purge Thread
      主要用于回收事务已经提交了的undo log，在事务提交之后，undo log可能不用了，就用它来回收。
@@ -290,21 +290,21 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
 
   - 记录中的隐藏字段
 
-    ![隐藏字段](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503143512870.png)
+    ![隐藏字段](E:\study\java学习\MySQL\MySQL_base\img\3.png)
 
   - undo log 版本链
 
-    ![版本链示意图](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503144830661.png)
+    ![版本链示意图](E:\study\java学习\MySQL\MySQL_base\img\4.png)
 
   - readview
 
-    ![版本链访问规则](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145024073.png)
+    ![版本链访问规则](E:\study\java学习\MySQL\MySQL_base\img\5.png)
 
     不同的隔离级别，生成Readview的时机不同：
     READ COMMITTED：在事务中每一次执行快照读时生成Readview。
     REPEATABLE READ：仅在事务中第一次执行快照读时生成ReadView，后续复用该ReadView。
 
-    ![RC](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145304855.png)![RR](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503145329299.png)
+    ![RC](E:\study\java学习\MySQL\MySQL_base\img\6.png)![RR](E:\study\java学习\MySQL\MySQL_base\img\7.png)
 
 ### 2.4 MySQL管理
 
@@ -312,11 +312,13 @@ mysqldump --single-transaction -u'用户' -p'密码' database1 > database.sql
 
 Mysql数据库安装完成后，自带了一下四个数据库，具体作用如下:
 
-![系统数据库](C:\Users\user\AppData\Roaming\Typora\typora-user-images\image-20240503150847479.png)
+![系统数据库](E:\study\java学习\MySQL\MySQL_base\img\8.png)
 
 #### 2.4.2 常用工具
 
 - mysql
+
+  
 
 
 
